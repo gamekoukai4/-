@@ -1,0 +1,1080 @@
+<title>勇者のクッキー</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+/* Layout: full-bleed 3D forest canvas. HUD pinned to the top edge, one bottom dock that swaps between dialogue, quiz and action button. Single dusk-forest look by choice. */
+:root{
+  --night:#0b1f1b;
+  --moss:#1d4a3b;
+  --lantern:#ffcf4a;
+  --berry:#ff5d73;
+  --mist:#eaf3e2;
+  --ink:#10211d;
+  --good:#5fd18a;
+  --bad:#ff6b6b;
+  --display:'Dela Gothic One','Hiragino Sans','Yu Gothic','Noto Sans JP',sans-serif;
+  --body:'Zen Maru Gothic','Hiragino Maru Gothic ProN','Yu Gothic','Noto Sans JP',sans-serif;
+  color-scheme: dark;
+}
+html,body{height:100%}
+body{margin:0;background:var(--night);color:var(--mist);font-family:var(--body);font-weight:500;overflow:hidden;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;background:var(--night)}
+button{font-family:inherit}
+:focus-visible{outline:3px solid var(--lantern);outline-offset:2px}
+
+#ui,.overlay{
+  position:fixed;inset:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:calc(env(safe-area-inset-top,0px) + 10px);
+  padding-bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
+  box-sizing:border-box;
+}
+#ui{pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;gap:8px;z-index:2}
+.overlay{z-index:5;display:flex;flex-direction:column}
+
+/* HUD */
+.hudrow{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.pill{pointer-events:auto;background:rgba(9,26,22,.72);border:1px solid rgba(234,243,226,.2);border-radius:999px;padding:4px 12px;display:flex;align-items:center;gap:6px;color:var(--mist)}
+.heart{font-size:22px;line-height:1;color:var(--berry);text-shadow:0 2px 0 rgba(0,0,0,.35)}
+.heart.off{color:rgba(255,255,255,.22)}
+.chip{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-size:14px;background:var(--lantern);color:var(--ink);opacity:.25;transition:opacity .3s,transform .3s}
+.chip.on{opacity:1;transform:scale(1.08)}
+.mute{border:1px solid rgba(234,243,226,.2);font-size:18px;cursor:pointer;min-width:44px;min-height:44px;justify-content:center;padding:0}
+.mute.off{opacity:.5}
+.stage{margin-top:8px;font-family:var(--display);font-size:13px;letter-spacing:.06em;color:var(--lantern);text-shadow:0 2px 0 rgba(0,0,0,.6)}
+.mhp{margin-top:6px;display:flex;align-items:center;gap:10px;font-weight:900;font-size:15px;text-shadow:0 2px 0 rgba(0,0,0,.6)}
+.pip{display:inline-block;width:26px;height:10px;margin-right:4px;background:var(--berry);border-radius:2px;transition:background .3s}
+.pip.off{background:rgba(255,255,255,.2)}
+
+/* Dock */
+#dock{pointer-events:none}
+.dockin{width:min(100%,720px);margin-inline:auto}
+.box{pointer-events:auto;position:relative;background:rgba(9,26,22,.92);border:2px solid var(--lantern);border-radius:10px;padding:20px 14px 14px;box-shadow:0 6px 0 rgba(0,0,0,.35);margin-top:14px}
+.tab{position:absolute;top:-15px;left:12px;background:var(--lantern);color:var(--ink);font-family:var(--display);font-size:13px;padding:3px 10px;border-radius:6px}
+.scroll{max-height:56vh;max-height:56dvh;overflow:auto}
+#talk{cursor:pointer}
+#line{margin:0;font-size:17px;line-height:1.7;min-height:3.4em;padding-right:22px}
+.nexttri{position:absolute;right:14px;bottom:10px;color:var(--lantern);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.2}}
+#qtext{margin:0 0 10px;font-size:17px;line-height:1.55;font-weight:900}
+#choices{display:flex;flex-direction:column;gap:8px}
+.choice{display:block;width:100%;text-align:left;background:rgba(234,243,226,.08);color:var(--mist);border:2px solid rgba(234,243,226,.35);border-radius:8px;padding:12px 14px;font-size:16px;font-weight:700;cursor:pointer;min-height:48px}
+.choice:active{transform:translateY(1px)}
+.choice.right{border-color:var(--good);background:rgba(95,209,138,.2)}
+.choice.wrong{border-color:var(--bad);background:rgba(255,107,107,.18)}
+.choice:disabled{cursor:default;opacity:.9}
+#fb{margin-top:10px}
+#res{margin:0 0 4px;font-family:var(--display);font-size:18px}
+#res.ok{color:var(--good)}
+#res.ng{color:var(--bad)}
+#exp{margin:0 0 10px;font-size:15px;line-height:1.65}
+.btn{background:var(--lantern);color:var(--ink);font-family:var(--display);font-size:16px;border:0;border-radius:8px;padding:12px 20px;box-shadow:0 4px 0 #b88a1a;cursor:pointer;min-height:48px}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #b88a1a}
+.btn.big{font-size:19px;width:100%}
+.btn.ghost{background:transparent;color:var(--mist);border:2px solid rgba(234,243,226,.4);box-shadow:none}
+.btn:disabled{opacity:.45;cursor:default}
+
+/* Title */
+#title{justify-content:flex-end}
+@media (min-aspect-ratio:1/1){#title .btn.big{width:340px}}
+.titlein{width:min(100%,720px);margin-inline:auto;padding-bottom:6px}
+.eyebrow{font-size:13px;letter-spacing:.14em;color:var(--mist);opacity:.85;margin:0 0 6px}
+h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(44px,13vw,92px);line-height:1.05;color:var(--lantern);text-shadow:0 5px 0 rgba(0,0,0,.55);text-wrap:balance}
+.sub{margin:12px 0 18px;font-size:17px;line-height:1.7;font-weight:700}
+.howto{margin:10px 0 0;font-size:13px;line-height:1.7;color:#fff;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+
+/* Modal cards */
+.modal{background:rgba(5,14,12,.78);align-items:center;justify-content:center}
+.card{width:min(100%,520px);max-height:100%;overflow:auto;background:var(--moss);border:2px solid var(--lantern);border-radius:12px;padding:20px 16px;box-shadow:0 8px 0 rgba(0,0,0,.4)}
+.card h2{margin:0 0 6px;font-family:var(--display);font-weight:400;font-size:24px;color:var(--lantern)}
+.card p{margin:0 0 12px;line-height:1.7}
+.bigchip{width:84px;height:84px;border-radius:50%;background:var(--lantern);color:var(--ink);display:grid;place-items:center;font-family:var(--display);font-size:42px;margin:6px 0 12px;animation:pop .6s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{from{transform:scale(0)}}
+
+/* Cooking */
+.shelf{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 14px}
+.ing{background:rgba(0,0,0,.25);border:2px solid rgba(234,243,226,.3);border-radius:10px;color:var(--mist);padding:8px 2px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;min-height:72px;font-size:13px;font-weight:700}
+.ing b{font-family:var(--display);font-weight:400;font-size:22px;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--mist);color:var(--ink)}
+.ing.used{opacity:.35;cursor:default}
+.ing.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.bowlwrap{display:flex;flex-direction:column;align-items:center;gap:10px;min-height:150px;justify-content:center}
+.bowl{width:170px;height:104px;border:4px solid var(--mist);border-top:0;border-radius:0 0 90px 90px;overflow:hidden;display:flex;flex-direction:column-reverse;background:rgba(0,0,0,.2)}
+.layer{height:23px;flex:none;transition:background .6s}
+.bowl.merged .layer{background:#e0c48c!important}
+.bowl.mixing{animation:wob .25s}
+@keyframes wob{25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+.bar{width:170px;height:10px;border-radius:5px;background:rgba(255,255,255,.2);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--lantern);transition:width .2s}
+#cmsg{min-height:3.4em;margin:6px 0 10px;line-height:1.6;font-weight:700}
+.cookie{position:relative;width:128px;height:128px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#efc07e,#c68a40);box-shadow:0 6px 0 #8a5a20;animation:pop .7s cubic-bezier(.2,1.6,.4,1)}
+.cookie i{position:absolute;width:14px;height:14px;border-radius:50%;background:#5a3418}
+.oven{font-family:var(--display);font-size:20px;color:var(--lantern);animation:blink 1s steps(2) infinite}
+
+/* End */
+.learn{display:grid;gap:6px;margin:8px 0 12px}
+.learn div{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;background:rgba(0,0,0,.22);border-radius:8px;padding:8px 10px;font-weight:900}
+.learn span.to{color:var(--lantern)}
+.notes{margin:0 0 14px;padding-left:1.2em;font-size:14px;line-height:1.7}
+
+#nogl{justify-content:center;align-items:flex-start}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<canvas id="c" aria-label="3Dの森"></canvas>
+
+<div id="ui">
+  <div id="hud" hidden>
+    <div class="hudrow">
+      <div class="pill" id="hearts" aria-label="勇者のHP"></div>
+      <div class="pill" id="items" aria-label="ゲットした材料"></div>
+      <button class="pill mute" id="mute" type="button" aria-label="音のオンオフ">♪</button>
+    </div>
+    <div class="stage" id="stage"></div>
+    <div class="mhp" id="mhp" hidden><span id="mname"></span><span id="pips"></span></div>
+  </div>
+  <div id="dock" hidden>
+    <div class="dockin">
+      <section id="talk" class="box" role="button" tabindex="0" hidden>
+        <div class="tab" id="who"></div>
+        <p id="line"></p>
+        <span class="nexttri" id="next" hidden>▶</span>
+      </section>
+      <section id="quiz" class="box" hidden>
+        <div class="tab">クイズ</div>
+        <div class="scroll">
+          <p id="qtext"></p>
+          <div id="choices"></div>
+          <div id="fb" hidden>
+            <p id="res"></p>
+            <p id="exp"></p>
+            <button class="btn" id="qnext" type="button">つぎへ</button>
+          </div>
+        </div>
+      </section>
+      <section id="act" class="box" hidden>
+        <div class="scroll"><button class="btn big" id="actBtn" type="button"></button></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div id="title" class="overlay" hidden>
+  <div class="titlein">
+    <button class="btn big" id="startBtn" type="button" hidden>はじめる</button>
+    <p class="howto" id="loadmsg">よみこみ中…</p>
+    <p class="howto">画面をタップして すすむ。クイズに こたえて モンスターをたおそう。</p>
+  </div>
+</div>
+
+<div id="drop" class="overlay modal" hidden>
+  <div class="card">
+    <div class="bigchip" id="dchip"></div>
+    <h2 id="dname"></h2>
+    <p id="ddesc"></p>
+    <button class="btn big" id="dok" type="button">つぎへ</button>
+  </div>
+</div>
+
+<div id="cook" class="overlay modal" hidden>
+  <div class="card">
+    <h2>クッキーづくり</h2>
+    <p id="cmsg"></p>
+    <div class="shelf" id="shelf"></div>
+    <div class="bowlwrap">
+      <div class="bowl" id="bowl"><div id="layers" style="display:contents"></div></div>
+      <div class="bar" id="mixbar" hidden><i id="mixfill"></i></div>
+      <div class="oven" id="oven" hidden>やいてるよ…</div>
+      <div class="cookie" id="cookie" hidden><i style="left:30px;top:28px"></i><i style="left:76px;top:36px"></i><i style="left:50px;top:62px"></i><i style="left:88px;top:84px"></i><i style="left:28px;top:88px"></i><i style="left:64px;top:96px;width:10px;height:10px"></i></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn big" id="mixBtn" type="button" hidden>まぜる</button>
+      <button class="btn big" id="bakeBtn" type="button" hidden>やく</button>
+      <button class="btn big" id="cookDone" type="button" hidden>魔王のしろへ</button>
+    </div>
+  </div>
+</div>
+
+<div id="end" class="overlay modal" hidden>
+  <div class="card">
+    <h2>ゲームクリア!</h2>
+    <p>魔王は わるさを やめて、みんなで クッキーを たべました。おぼえた ことを ふりかえろう。</p>
+    <div class="learn">
+      <div><span>小麦粉</span><span class="to">→</span><span>米粉</span></div>
+      <div><span>卵</span><span class="to">→</span><span>油</span></div>
+      <div><span>牛乳</span><span class="to">→</span><span>豆乳</span></div>
+    </div>
+    <ul class="notes">
+      <li>豆乳は 大豆から作るので、大豆アレルギーの人は 使えません。</li>
+      <li>代替品が合うかは 人によってちがいます。医師や 家の人の指示を まもりましょう。</li>
+      <li>最新の表示ルールは、消費者庁の 食物アレルギー表示の 情報で たしかめましょう。</li>
+    </ul>
+    <button class="btn big" id="again" type="button">もういちど あそぶ</button>
+  </div>
+</div>
+
+<div id="nogl" class="overlay" hidden>
+  <div class="card"><h2>3Dが ひらけません</h2><p>この ブラウザでは 3D表示が 使えないようです。別のブラウザで ひらいてみてください。</p></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+if (typeof THREE === 'undefined') { $('#nogl').hidden = false; return; }
+let renderer;
+try { renderer = new THREE.WebGLRenderer({canvas: $('#c'), antialias: true}); }
+catch (e) { $('#nogl').hidden = false; return; }
+
+/* ---------- helpers ---------- */
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t) => a + (b - a) * t;
+const ease = t => t < .5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const V3 = THREE.Vector3;
+
+let muted = false, ac = null;
+function sfx(k) {
+  if (muted) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const seqs = { tap:[[660,.05]], ok:[[660,.08],[880,.14]], ng:[[220,.15],[170,.22]], hit:[[300,.06],[150,.12]], get:[[523,.1],[659,.1],[784,.22]], win:[[523,.12],[659,.12],[784,.12],[1047,.34]] };
+    let t = ac.currentTime;
+    seqs[k].forEach(([f,d]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = k === 'ng' ? 'sawtooth' : 'square'; o.frequency.value = f;
+      g.gain.setValueAtTime(.05, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
+      o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + d); t += d;
+    });
+  } catch (e) {}
+}
+
+/* ---------- game data ---------- */
+const MZ = [28, 58, 88];       // monster z positions
+const MON = [
+  { id:'wheat', name:'小麦粉モンスター', stage:'小麦粉の森',
+    intro:'ふわっふわの こなを あびせてやる! 小麦アレルギーの人は、ぼくを たべられないのだ!',
+    drop:{ k:'rice', chip:'米', name:'米粉を ゲット!', desc:'お米を こなにしたもの。小麦粉の かわりに、クッキーが つくれるよ。' },
+    qs:[
+      { q:'小麦アレルギーの人が、クッキーの小麦粉の代わりに使えるものは?', c:['米粉','薄力粉','パン粉'], a:0, exp:'米粉は お米から作る粉だよ。薄力粉も パン粉も 小麦から作られているので、小麦アレルギーの人は 食べられないよ。' },
+      { q:'小麦が入っているのは どれ?', c:['うどん','白いごはん','ビーフン'], a:0, exp:'うどんは 小麦粉で作る めん。ごはんと ビーフンは お米が 原料だよ。' },
+      { q:'食べものの袋の「原材料」を 見るのは どうして?', c:['アレルギーの原因が入っていないか 確かめるため','ねだんを 調べるため','カロリーを 数えるため'], a:0, exp:'パッケージには、小麦・卵・乳など アレルギーの原因になる 材料が 表示されているよ。食べる前に かならず 確認しよう。' }
+    ] },
+  { id:'egg', name:'卵モンスター', stage:'たまごの森',
+    intro:'コケッ! ぼくは 卵モンスター! 卵アレルギーの人は、ぼくに ちかづけないぞ!',
+    drop:{ k:'oil', chip:'油', name:'油を ゲット!', desc:'卵を つかわない お菓子づくりで、水分と あわせて 生地を まとめるのに やくだつよ。' },
+    qs:[
+      { q:'卵を使わずに クッキーの生地を まとめたい。代わりになるものは?', c:['油','マヨネーズ','ゆで卵'], a:0, exp:'油と 水分を あわせると、卵なしでも 生地を まとめられるレシピがあるよ。マヨネーズは 卵から作られているので、卵アレルギーの人は 食べられないよ。' },
+      { q:'卵が入っているのは どれ?', c:['マヨネーズ','豆腐','バナナ'], a:0, exp:'マヨネーズは 卵黄から作られているよ。豆腐は 大豆、バナナは くだものだよ。' },
+      { q:'卵は 火を通せば、卵アレルギーの人も 必ず食べられる?', c:['加熱しても 症状が出る人がいる','必ず 食べられる','冷やせば 食べられる'], a:0, exp:'加熱すると 食べられる人もいるけれど、そうでない人もいるよ。自分で 決めずに、お医者さんの 指示に したがおう。' }
+    ] },
+  { id:'milk', name:'牛乳モンスター', stage:'ミルクの森',
+    intro:'モォー! ミルクの パワーを みせてやる! 牛乳アレルギーの人は、ぼくを のめないのだ!',
+    drop:{ k:'soy', chip:'豆', name:'豆乳を ゲット!', desc:'大豆から作る のみもの。牛乳の かわりに つかえるよ。(大豆アレルギーの人は 使えないよ)' },
+    qs:[
+      { q:'牛乳アレルギーの人が、クッキーの牛乳の代わりに使えるものは?', c:['豆乳','ヨーグルト','チーズ'], a:0, exp:'豆乳は 大豆から作る のみもの。ヨーグルトと チーズは 牛乳から作られているよ。' },
+      { q:'牛乳(乳)から作られているのは どれ?', c:['バター','サラダ油','米粉'], a:0, exp:'バターは 牛乳の クリームから作るよ。サラダ油は 植物の油、米粉は お米だよ。' },
+      { q:'豆乳を 使うとき、気をつけることは?', c:['大豆アレルギーの人は 使えない','小麦が 入っている','卵が 入っている'], a:0, exp:'豆乳は 大豆から作られているよ。大豆アレルギーの人には、別の代替品が 必要なんだ。' }
+    ] }
+];
+const INGS = [
+  { k:'wheat', n:'小麦粉', ch:'小', bad:true, why:'小麦粉は 小麦アレルギーの人が 食べられないよ。米粉を つかおう!' },
+  { k:'rice',  n:'米粉',   ch:'米', col:'#f4ecd8' },
+  { k:'egg',   n:'卵',     ch:'卵', bad:true, why:'卵は 卵アレルギーの人が 食べられないよ。油で 生地を まとめよう!' },
+  { k:'oil',   n:'油',     ch:'油', col:'#e8c34a' },
+  { k:'milk',  n:'牛乳',   ch:'乳', bad:true, why:'牛乳は 牛乳アレルギーの人が 食べられないよ。豆乳を つかおう!' },
+  { k:'soy',   n:'豆乳',   ch:'豆', col:'#ecdcae' },
+  { k:'sugar', n:'砂糖',   ch:'砂', col:'#ffffff' }
+];
+
+/* ---------- scene ---------- */
+const scene = new THREE.Scene();
+const FOREST = new THREE.Color(0x10302a), DUSK = new THREE.Color(0x2b1236);
+scene.background = FOREST.clone();
+scene.fog = new THREE.Fog(FOREST.clone(), 14, 62);
+const camera = new THREE.PerspectiveCamera(50, 1, .1, 300);
+scene.add(camera);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x2a4a30, .95));
+const sun = new THREE.DirectionalLight(0xffe2a0, .7); sun.position.set(-6, 12, -4); scene.add(sun);
+
+const M = (c, o) => new THREE.MeshLambertMaterial(Object.assign({ color: c, flatShading: true }, o || {}));
+function mesh(geo, mat, x, y, z) { const m = new THREE.Mesh(geo, mat); m.position.set(x || 0, y || 0, z || 0); return m; }
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+/* moon on the camera so it always hangs in the sky */
+const moon = mesh(new THREE.SphereGeometry(2.4, 20, 14), new THREE.MeshBasicMaterial({ color: 0xfff2b0, fog: false }), -9, 9, -45);
+camera.add(moon);
+
+/* ground + path */
+const groundMesh = mesh(new THREE.PlaneGeometry(140, 320), M(0x2c5e3a), 0, 0, 90); groundMesh.rotation.x = -Math.PI / 2; scene.add(groundMesh);
+const pathMesh = mesh(new THREE.PlaneGeometry(5.5, 320), M(0xa8804d), 0, .02, 90); pathMesh.rotation.x = -Math.PI / 2; scene.add(pathMesh);
+
+/* trees (instanced) */
+(function trees() {
+  const N = 300, d = new THREE.Object3D();
+  const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(.28, .38, 1.8, 6), M(0x6b4a2a), N);
+  const leafA = new THREE.InstancedMesh(new THREE.ConeGeometry(1.7, 4, 7), M(0x1f6b44), N);
+  const leafB = new THREE.InstancedMesh(new THREE.ConeGeometry(1.3, 3, 7), M(0x2a8553), N);
+  for (let i = 0; i < N; i++) {
+    const side = Math.random() < .5 ? -1 : 1;
+    const x = side * (8 + Math.random() * 22), z = -12 + Math.random() * 205, s = .8 + Math.random() * .9;
+    d.rotation.set(0, Math.random() * 6, 0); d.scale.set(s, s, s);
+    d.position.set(x, .9 * s, z); d.updateMatrix(); trunk.setMatrixAt(i, d.matrix);
+    d.position.set(x, 3.2 * s, z); d.updateMatrix(); leafA.setMatrixAt(i, d.matrix);
+    d.position.set(x, 5.2 * s, z); d.updateMatrix(); leafB.setMatrixAt(i, d.matrix);
+  }
+  scene.add(trunk, leafA, leafB);
+})();
+
+/* fireflies */
+const FF = 220, ffPos = new Float32Array(FF * 3), ffPh = [];
+for (let i = 0; i < FF; i++) { ffPos[i*3] = -14 + Math.random() * 28; ffPos[i*3+1] = .6 + Math.random() * 3; ffPos[i*3+2] = Math.random() * 185; ffPh.push(Math.random() * 6.28); }
+const ffGeo = new THREE.BufferGeometry(); ffGeo.setAttribute('position', new THREE.BufferAttribute(ffPos, 3));
+scene.add(new THREE.Points(ffGeo, new THREE.PointsMaterial({ color: 0xffe27a, size: .28, transparent: true, opacity: .9, depthWrite: false })));
+
+/* castle */
+(function castle() {
+  const g = new THREE.Group(), stone = M(0x2b2538), roof = M(0x5b1f3a), win = new THREE.MeshBasicMaterial({ color: 0xff6a3a });
+  g.add(mesh(new THREE.BoxGeometry(12, 10, 7), stone, 0, 5, 0));
+  [-8, 8].forEach(x => { g.add(mesh(new THREE.CylinderGeometry(2.2, 2.4, 13, 10), stone, x, 6.5, 0)); g.add(mesh(new THREE.ConeGeometry(3, 4.5, 10), roof, x, 15.2, 0)); });
+  const keepRoof = mesh(new THREE.ConeGeometry(4.5, 4, 4), roof, 0, 12, 0); keepRoof.rotation.y = Math.PI / 4; g.add(keepRoof);
+  g.add(mesh(new THREE.BoxGeometry(2.8, 4, .3), M(0x0a0a10), 0, 2, -3.6));
+  [[-3.5,7],[3.5,7],[-8,9],[8,9],[-8,5],[8,5]].forEach(([x, y]) => g.add(mesh(new THREE.BoxGeometry(.7, 1.3, .2), win, x, y, x > -5 && x < 5 ? -3.6 : -2.4)));
+  g.position.set(0, 0, 172); scene.add(g);
+})();
+
+/* ---------- characters (all face +z at rest) ---------- */
+function eyes(g, y, z, sp, s) {
+  [-1, 1].forEach(sx => {
+    g.add(mesh(new THREE.SphereGeometry(.2*s, 12, 10), M(0xffffff), sx*sp, y, z));
+    g.add(mesh(new THREE.SphereGeometry(.1*s, 10, 8), M(0x111111), sx*sp, y - .02*s, z + .15*s));
+    const b = mesh(new THREE.BoxGeometry(.38*s, .07*s, .06*s), M(0x111111), sx*sp, y + .27*s, z + .05*s);
+    b.rotation.z = sx * .45; g.add(b);
+  });
+}
+function mouth(g, y, z, w) {
+  g.add(mesh(new THREE.BoxGeometry(w, .13, .05), M(0x2a0d10), 0, y, z));
+  g.add(mesh(new THREE.BoxGeometry(.1, .1, .05), M(0xffffff), -w/4, y + .1, z));
+  g.add(mesh(new THREE.BoxGeometry(.1, .1, .05), M(0xffffff), w/4, y + .1, z));
+}
+function labelMat(text, bg, fg) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const x = c.getContext('2d'); x.fillStyle = bg; x.fillRect(0, 0, 256, 128);
+  x.fillStyle = fg; x.font = "900 66px 'Zen Maru Gothic','Hiragino Sans','Yu Gothic','Noto Sans JP',sans-serif";
+  x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 128, 70);
+  return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c) });
+}
+function wrap() { const o = new THREE.Group(), g = new THREE.Group(); o.add(g); o.userData.inner = g; return [o, g]; }
+
+const SM = c => new THREE.MeshLambertMaterial({ color: c });
+function cuteFace(g, y, z, sp, s, mouthY, mouthZ) {
+  [-1, 1].forEach(sx => {
+    const e = mesh(new THREE.SphereGeometry(.12 * s, 12, 10), SM(0x1b1210), sx * sp, y, z); e.scale.set(1, 1.3, .5); g.add(e);
+    g.add(mesh(new THREE.SphereGeometry(.04 * s, 6, 5), SM(0xffffff), sx * sp - .03 * s, y + .06 * s, z + .05 * s));
+    const ch = mesh(new THREE.CircleGeometry(.17 * s, 14), SM(0xf19c90), sx * sp * 1.55, y - .3 * s, z - .04 * s); ch.rotation.y = sx * .6; g.add(ch);
+  });
+  g.add(mesh(new THREE.CircleGeometry(.24 * s, 18, Math.PI, Math.PI), SM(0x8a2424), 0, mouthY, mouthZ));
+}
+
+function ELL(g, geo, mat, x, y, z, sx, sy, sz) { const m = mesh(geo, mat, x, y, z); m.scale.set(sx, sy, sz); g.add(m); return m; }
+function friendlyEyes(g, y, z, sp, s) {
+  [-1, 1].forEach(sx => {
+    ELL(g, new THREE.SphereGeometry(.14 * s, 12, 10), M(0x1b1210), sx * sp, y, z, 1, 1.35, .55);
+    g.add(mesh(new THREE.SphereGeometry(.05 * s, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), sx * sp - .035 * s, y + .08 * s, z + .07 * s));
+  });
+}
+function smile(g, y, z, r) {
+  g.add(mesh(new THREE.CircleGeometry(r, 16, Math.PI, Math.PI), M(0x8a2424), 0, y, z));
+  g.add(mesh(new THREE.CircleGeometry(r * .5, 12, Math.PI, Math.PI), M(0xf08080), 0, y - r * .45, z + .004));
+}
+function cheeks(g, y, z, x, r, rot) {
+  [-1, 1].forEach(s => { const c = mesh(new THREE.CircleGeometry(r, 16), M(0xf19c90), s * x, y, z); c.rotation.y = s * rot; g.add(c); });
+}
+function patch(g, c, a, dir, w, h, mat) {
+  const d = new V3(dir[0], dir[1], dir[2]).normalize();
+  const P = new V3(c[0] + d.x * a[0], c[1] + d.y * a[1], c[2] + d.z * a[2]);
+  const n = new V3(d.x / a[0], d.y / a[1], d.z / a[2]).normalize();
+  const m = mesh(new THREE.SphereGeometry(1, 12, 8), mat, P.x, P.y, P.z); m.scale.set(w, h, .14);
+  m.lookAt(P.clone().add(n)); g.add(m); return m;
+}
+
+/* 勇者: コックの姿 */
+function makeHero() {
+  const [o, g] = wrap();
+  const white = M(0xfdfdfb), skin = M(0xf8cca2), brown = M(0x8a5128), red = M(0xdc3b33), pants = M(0x9a6530), boot = M(0x5a3418), wood = M(0x9a6430);
+  const legs = [-1, 1].map(s => {
+    const l = new THREE.Group(); l.position.set(s * .2, .6, 0);
+    l.add(mesh(new THREE.CylinderGeometry(.15, .15, .6, 8), pants, 0, -.3, 0));
+    l.add(mesh(new THREE.BoxGeometry(.3, .2, .46), boot, 0, -.52, .07));
+    g.add(l); return l;
+  });
+  g.add(mesh(new THREE.CylinderGeometry(.48, .58, .95, 14), white, 0, 1.08, 0));
+  g.add(mesh(new THREE.CylinderGeometry(.585, .585, .12, 14), M(0x6b3f1d), 0, .7, 0));
+  g.add(mesh(new THREE.BoxGeometry(.2, .16, .05), M(0xe0b030), 0, .7, .59));
+  [-1, 1].forEach(s => { const b = mesh(new THREE.BoxGeometry(.1, .9, .04), M(0x7a4a1c), s * .24, 1.1, .5); b.rotation.z = s * .12; g.add(b); });
+  g.add(mesh(new THREE.CylinderGeometry(.18, .2, .2, 10), skin, 0, 1.6, 0));
+  const nt = mesh(new THREE.TorusGeometry(.36, .1, 8, 20), red, 0, 1.52, 0); nt.rotation.x = Math.PI / 2; g.add(nt);
+  const tri = mesh(new THREE.ConeGeometry(.3, .6, 3), red, 0, 1.25, .42); tri.rotation.x = Math.PI; tri.scale.set(1, 1, .3); g.add(tri);
+  g.add(mesh(new THREE.SphereGeometry(.1, 10, 8), red, 0, 1.45, .46));
+  ELL(g, new THREE.SphereGeometry(.5, 22, 16), skin, 0, 2.05, 0, 1, .95, .97);
+  const hair = mesh(new THREE.SphereGeometry(.54, 20, 10, 0, Math.PI * 2, 0, Math.PI * .52), brown, 0, 2.1, -.02); g.add(hair);
+  [-.34, -.17, 0, .17, .34].forEach(x => ELL(g, new THREE.SphereGeometry(.17, 10, 8), brown, x, 2.4 - Math.abs(x) * .1, .38, 1, .8, .6));
+  [-1, 1].forEach(s => {
+    ELL(g, new THREE.SphereGeometry(.12, 10, 8), skin, s * .5, 2.0, 0, .6, 1, .8);
+    g.add(mesh(new THREE.BoxGeometry(.2, .04, .03), brown, s * .2, 2.2, .44));
+  });
+  friendlyEyes(g, 2.02, .45, .2, 1.0);
+  cheeks(g, 1.88, .38, .32, .09, .7);
+  g.add(mesh(new THREE.SphereGeometry(.035, 8, 6), M(0xe8a77f), 0, 1.95, .5));
+  smile(g, 1.85, .45, .13);
+  const hat = new THREE.Group(); hat.position.set(0, 2.45, 0); hat.rotation.z = -.07; g.add(hat);
+  hat.add(mesh(new THREE.CylinderGeometry(.5, .5, .3, 16), white, 0, .05, 0));
+  ELL(hat, new THREE.SphereGeometry(.5, 16, 12), white, 0, .45, 0, 1, .8, 1);
+  for (let k = 0; k < 5; k++) { const a = k / 5 * 6.283; hat.add(mesh(new THREE.SphereGeometry(.27, 10, 8), white, Math.cos(a) * .32, .35, Math.sin(a) * .32)); }
+  hat.add(mesh(new THREE.SphereGeometry(.3, 12, 10), white, .04, .72, 0));
+  /* 武器の泡立て器を持つ腕 */
+  const arm = new THREE.Group(); arm.position.set(-.62, 1.4, 0);
+  arm.add(mesh(new THREE.SphereGeometry(.15, 10, 8), white, 0, 0, 0));
+  arm.add(mesh(new THREE.CylinderGeometry(.12, .13, .6, 8), white, 0, -.3, 0));
+  arm.add(mesh(new THREE.SphereGeometry(.13, 10, 8), skin, 0, -.65, 0));
+  arm.add(mesh(new THREE.BoxGeometry(.07, .07, .75), wood, 0, -.65, .4));
+  for (let k = 0; k < 4; k++) {
+    const pv = new THREE.Group(); pv.position.set(0, -.65, 0); pv.rotation.z = k * Math.PI / 4;
+    const ring = mesh(new THREE.TorusGeometry(.2, .016, 6, 20), M(0xa8aeb6), 0, 0, 1.35); ring.scale.x = 2.4; ring.rotation.y = Math.PI / 2; pv.add(ring); arm.add(pv);
+  }
+  const collar = mesh(new THREE.CylinderGeometry(.06, .06, .14, 8), M(0xa8aeb6), 0, -.65, .85); collar.rotation.x = Math.PI / 2; arm.add(collar);
+  g.add(arm);
+  const arm2 = new THREE.Group(); arm2.position.set(.62, 1.4, 0);
+  arm2.add(mesh(new THREE.SphereGeometry(.15, 10, 8), white, 0, 0, 0));
+  arm2.add(mesh(new THREE.CylinderGeometry(.12, .13, .6, 8), white, 0, -.3, 0));
+  arm2.add(mesh(new THREE.SphereGeometry(.13, 10, 8), skin, 0, -.65, 0));
+  g.add(arm2);
+  /* 背中のかばんと木べら */
+  const cape = new THREE.Group(); cape.position.set(0, 1.4, -.52); g.add(cape);
+  cape.add(mesh(new THREE.BoxGeometry(.8, .7, .26), M(0x8a5a2c), 0, -.3, 0));
+  cape.add(mesh(new THREE.BoxGeometry(.82, .2, .3), M(0x7a4a1c), 0, .02, 0));
+  const spoon = mesh(new THREE.CylinderGeometry(.03, .03, .9, 6), wood, .3, .25, 0); spoon.rotation.z = -.2; cape.add(spoon);
+  ELL(cape, new THREE.SphereGeometry(1, 10, 8), M(0xc78a3e), .4, .72, 0, .1, .17, .04);
+  const lamp = new THREE.PointLight(0xffd9a0, .9, 20); lamp.position.set(0, 3.4, -.5); o.add(lamp);
+  Object.assign(o.userData, { legs, arm, arm2, cape });
+  return o;
+}
+
+/* 小麦モンスター: もさもさした小麦色の丸い体 */
+function makeFlour() {
+  const [o, g] = wrap(); const R = 1.3, cy = 1.5;
+  const wheat = M(0xdfae55), wheat2 = M(0xc98f33), light = M(0xf3d99a);
+  g.add(mesh(new THREE.SphereGeometry(R * .96, 20, 16), wheat, 0, cy, 0));
+  const N = 280, A = new THREE.InstancedMesh(new THREE.ConeGeometry(.2, .55, 5), wheat, N), B = new THREE.InstancedMesh(new THREE.ConeGeometry(.2, .55, 5), wheat2, N);
+  const d = new THREE.Object3D(); let ia = 0, ib = 0;
+  for (let i = 0; i < N; i++) {
+    const ph = Math.acos(1 - 2 * (i + .5) / N), th = Math.PI * (1 + Math.sqrt(5)) * i;
+    const dir = new V3(Math.sin(ph) * Math.cos(th), Math.cos(ph), Math.sin(ph) * Math.sin(th));
+    if (dir.z > .6 && dir.y > -.5 && dir.y < .8) continue;
+    const s = .8 + ((i * 37) % 10) / 10 * .55;
+    d.position.copy(dir).multiplyScalar(R * .96 + .1).add(new V3(0, cy, 0));
+    d.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir); d.scale.set(s, s, s); d.updateMatrix();
+    if (i % 2) A.setMatrixAt(ia++, d.matrix); else B.setMatrixAt(ib++, d.matrix);
+  }
+  A.count = ia; B.count = ib; g.add(A, B);
+  ELL(g, new THREE.SphereGeometry(1, 20, 14), light, 0, cy - .1, R * .96 - .18, .9, .7, .35);
+  friendlyEyes(g, cy + .12, 1.37, .4, 1.3);
+  cheeks(g, cy - .2, 1.31, .65, .15, .6);
+  smile(g, cy - .3, 1.41, .22);
+  [-1, 1].forEach(s => {
+    ELL(g, new THREE.SphereGeometry(.22, 10, 8), wheat2, s * .5, .22, .35, 1, .7, 1.3);
+    ELL(g, new THREE.SphereGeometry(.25, 10, 8), wheat2, s * 1.3, cy - .3, .45, 1, 1, 1);
+  });
+  [[-.45, .25, 0xe5b94a], [.1, .0, 0xe5b94a], [.5, -.25, 0xe5b94a]].forEach(([x, tilt, col], n) => {
+    const e = new THREE.Group(); e.position.set(x, cy + R * .9, -.1 - n * .05); e.rotation.z = -tilt; g.add(e);
+    e.add(mesh(new THREE.CylinderGeometry(.035, .045, .9, 6), M(0xb8a040), 0, .45, 0));
+    for (let j = 0; j < 5; j++) [-1, 1].forEach(s => { const gr = ELL(e, new THREE.SphereGeometry(1, 8, 6), M(col), s * .07, .95 + j * .15, 0, .07, .14, .055); gr.rotation.z = -s * .35; });
+    ELL(e, new THREE.SphereGeometry(1, 8, 6), M(col), 0, 1.75, 0, .06, .15, .05);
+  });
+  return o;
+}
+
+/* 卵モンスター: 白くて丸く、少しひび割れて黄身が出ている */
+function makeEgg() {
+  const [o, g] = wrap(); const cy = 1.4, R = 1.15, SY = 1.15;
+  const shell = new THREE.MeshLambertMaterial({ color: 0xfff8ea, side: THREE.DoubleSide });
+  const yolk = M(0xffb21a), crack = M(0x7a6a52);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(R, 28, 20, 0, Math.PI * 2, .5, Math.PI - .5), shell); body.position.set(0, cy, 0); body.scale.set(1, SY, 1); g.add(body);
+  for (let i = 0; i < 10; i++) {
+    const a = i / 10 * 6.283, h = i % 2 ? .26 : .4;
+    const c = mesh(new THREE.ConeGeometry(.12, h, 4), shell, Math.cos(a) * .55, 2.56 + h / 2 - .03, Math.sin(a) * .55);
+    c.rotation.set(Math.sin(a) * .25, 0, -Math.cos(a) * .25); g.add(c);
+  }
+  ELL(g, new THREE.SphereGeometry(.52, 20, 14), yolk, 0, 2.55, 0, 1, .8, 1);
+  g.add(mesh(new THREE.SphereGeometry(.09, 8, 6), new THREE.MeshBasicMaterial({ color: 0xfff1b0 }), -.18, 2.85, .2));
+  ELL(g, new THREE.SphereGeometry(1, 10, 8), yolk, .28, 2.3, .9, .16, .46, .1);
+  g.add(mesh(new THREE.SphereGeometry(.12, 8, 6), yolk, .28, 2.62, .52));
+  const pts = [[.5, .85], [.72, 1.05], [.88, .8], [1.1, 1.0], [1.28, .78]].map(([t, p]) => new V3(1.16 * R * Math.sin(t) * Math.cos(p), cy + SY * R * Math.cos(t) * 1.01, 1.01 * R * Math.sin(t) * Math.sin(p)));
+  for (let i = 0; i < pts.length - 1; i++) limb(g, [pts[i].x, pts[i].y, pts[i].z], [pts[i + 1].x, pts[i + 1].y, pts[i + 1].z], .024, crack);
+  limb(g, [pts[2].x, pts[2].y, pts[2].z], [pts[2].x + .22, pts[2].y - .06, pts[2].z - .02], .02, crack);
+  friendlyEyes(g, 1.7, 1.05, .36, 1.25);
+  cheeks(g, 1.38, 1.0, .62, .15, .55);
+  smile(g, 1.28, 1.15, .22);
+  [-1, 1].forEach(s => {
+    ELL(g, new THREE.SphereGeometry(.2, 10, 8), shell, s * 1.15, 1.2, .2, 1, 1, 1);
+    ELL(g, new THREE.SphereGeometry(.22, 10, 8), M(0xf0b070), s * .4, .1, .22, 1, .55, 1.5);
+  });
+  return o;
+}
+
+/* 牛乳モンスター: イラストのウシ(牛乳パックを持つ) */
+function makeCow() {
+  const [o, g] = wrap();
+  const white = M(0xfdfdfd), dark = M(0x1f1f24), pink = M(0xffb3b8), horn = M(0xf3e6c4);
+  const bc = [0, 1.3, 0], ba = [1.05, 1.15, .95], hc = [0, 2.75, .1], ha = [.935, .8075, .85];
+  ELL(g, new THREE.SphereGeometry(1, 22, 16), white, bc[0], bc[1], bc[2], ba[0], ba[1], ba[2]);
+  [[.8, .3, .5, .38, .42], [-.9, .1, .3, .4, .45], [.2, -.2, -1, .45, .4], [-.5, .75, .5, .3, .28], [.6, -.6, .5, .26, .24]].forEach(([x, y, z, w, h]) => patch(g, bc, ba, [x, y, z], w, h, dark));
+  ELL(g, new THREE.SphereGeometry(1, 22, 16), white, hc[0], hc[1], hc[2], ha[0], ha[1], ha[2]);
+  patch(g, hc, ha, [-.6, .75, .2], .3, .3, dark);
+  [-1, 1].forEach(s => {
+    const ear = ELL(g, new THREE.SphereGeometry(1, 12, 8), s > 0 ? dark : white, s * 1.05, 2.95, 0, .4, .2, .12); ear.rotation.z = s * .4;
+    const hn = mesh(new THREE.ConeGeometry(.12, .55, 6), horn, s * .5, 3.5, .1); hn.rotation.z = -s * .35; g.add(hn);
+  });
+  ELL(g, new THREE.SphereGeometry(1, 16, 12), pink, 0, 2.45, .85, .6, .38, .4);
+  [-1, 1].forEach(s => g.add(mesh(new THREE.SphereGeometry(.05, 8, 6), dark, s * .2, 2.5, 1.21)));
+  friendlyEyes(g, 2.88, .88, .38, 1.5);
+  cheeks(g, 2.58, .7, .62, .14, .6);
+  smile(g, 2.32, 1.235, .13);
+  limb(g, [-1.0, 1.9, .1], [-1.1, 1.0, .45], .24, white); g.add(mesh(new THREE.SphereGeometry(.2, 10, 8), dark, -1.1, .95, .48));
+  limb(g, [1.0, 1.9, .1], [.6, 1.35, 1.0], .24, white); g.add(mesh(new THREE.SphereGeometry(.2, 10, 8), dark, .55, 1.35, 1.05));
+  const carton = new THREE.Group(); carton.position.set(.8, 1.6, 1.2); g.add(carton);
+  carton.add(mesh(new THREE.BoxGeometry(.55, .8, .42), M(0xffffff), 0, 0, 0));
+  carton.add(mesh(new THREE.PlaneGeometry(.5, .38), labelMat('牛乳', '#3a78d8', '#ffffff'), 0, -.05, .215));
+  const roof = mesh(new THREE.ConeGeometry(.3, .25, 4), M(0xe8eef5), 0, .52, 0); roof.rotation.y = Math.PI / 4; roof.scale.set(1.3, 1, 1); carton.add(roof);
+  [-1, 1].forEach(s => {
+    g.add(mesh(new THREE.CylinderGeometry(.3, .3, .9, 10), white, s * .45, .5, 0));
+    g.add(mesh(new THREE.BoxGeometry(.5, .2, .65), dark, s * .45, .1, .1));
+  });
+  limb(g, [0, 1.0, -.9], [.3, .5, -1.1], .06, white); g.add(mesh(new THREE.SphereGeometry(.15, 8, 6), dark, .3, .45, -1.1));
+  o.scale.setScalar(.92); return o;
+}
+
+/* 魔王: イラストの紫色の魔王(つの・マント・大きな口) */
+function makeMaou() {
+  const [o, g] = wrap();
+  const skin = M(0x6a5a9a), lite = M(0x8c7cb8), blk = M(0x1a1420), cape = M(0x4a2a6e), inner = M(0x9c1f33);
+  [-1, 1].forEach(s => {
+    ELL(g, new THREE.SphereGeometry(.4, 12, 10), skin, s * .5, .3, .1, 1, .8, 1.4);
+  });
+  ELL(g, new THREE.SphereGeometry(1.15, 22, 16), skin, 0, 1.5, 0, 1.15, 1.1, 1.0);
+  ELL(g, new THREE.SphereGeometry(1, 18, 14), lite, 0, 1.4, .9, .85, .8, .35);
+  ELL(g, new THREE.SphereGeometry(.95, 18, 12), skin, 0, 2.3, 0, 1.2, .7, .85);
+  [-1, 1].forEach(s => {
+    limb(g, [s * 1.15, 2.35, 0], [s * 1.4, 1.5, .5], .3, skin);
+    g.add(mesh(new THREE.SphereGeometry(.32, 10, 8), skin, s * 1.45, 1.4, .55));
+    const hn = mesh(new THREE.ConeGeometry(.2, 1.0, 6), blk, s * .62, 3.6, 0); hn.rotation.z = -s * .45; g.add(hn);
+    const tip = mesh(new THREE.ConeGeometry(.1, .4, 6), blk, s * 1.0, 4.05, 0); tip.rotation.z = -s * .75; g.add(tip);
+    const ear = mesh(new THREE.ConeGeometry(.18, .6, 5), skin, s * 1.0, 3.1, -.05); ear.rotation.z = -s * 1.2; g.add(ear);
+  });
+  const head = ELL(g, new THREE.SphereGeometry(.8, 22, 16), skin, 0, 3.0, 0, 1.2, .88, 1);
+  eyes(g, 3.1, .74, .34, 1.05);
+  ELL(g, new THREE.SphereGeometry(.12, 8, 6), M(0x5a4a88), 0, 2.9, .83, 1.2, .9, 1);
+  g.add(mesh(new THREE.CircleGeometry(.34, 20, Math.PI, Math.PI), M(0x3a0f18), 0, 2.64, .67));
+  [-1, 1].forEach(s => {
+    const f = mesh(new THREE.ConeGeometry(.06, .2, 5), M(0xffffff), s * .17, 2.54, .7); f.rotation.x = Math.PI; g.add(f);
+    g.add(mesh(new THREE.ConeGeometry(.05, .16, 5), M(0xffffff), s * .27, 2.43, .7));
+  });
+  const back = mesh(new THREE.BoxGeometry(2.9, 2.8, .12), cape, 0, 2.0, -1.0); back.rotation.x = -.08; g.add(back);
+  const lining = mesh(new THREE.BoxGeometry(2.6, 2.5, .06), inner, 0, 2.0, -.9); lining.rotation.x = -.08; g.add(lining);
+  [-1, 1].forEach(s => { const c = mesh(new THREE.BoxGeometry(.9, 1.3, .1), cape, s * 1.2, 2.9, -.6); c.rotation.set(0, s * .5, s * .15); g.add(c); });
+  o.userData.head = skin; o.scale.setScalar(1.3); return o;
+}
+
+/* ---------- state ---------- */
+const hero = makeHero(); scene.add(hero);
+let actors = [], maou = null, hearts = 3, items = {}, camMode = 'title', battleZ = 0;
+let time = 0, last = performance.now();
+const camPos = new V3(2.6, 1.9, 5.2), camLook = new V3(0, 1.3, 0);
+const tweens = [], frameWaiters = [], bursts = [];
+
+function anim(ms, fn) { return new Promise(res => tweens.push({ t: 0, ms, fn, res })); }
+const nextFrame = () => new Promise(r => frameWaiters.push(r));
+
+function camTarget() {
+  const a = innerWidth / innerHeight;
+  if (camMode === 'follow') return [new V3(hero.position.x + 2.8, 3.1, hero.position.z - 6.5), new V3(hero.position.x, 1.5, hero.position.z + 5)];
+  if (camMode === 'battle') {
+    const d = clamp(5.8 / (.466 * a), 7.5, 22);
+    return [new V3(-d, 2.6 + d * .04, battleZ), new V3(0, 1.4 - .2 * .93 * d, battleZ)];
+  }
+  if (camMode === 'cook') return [new V3(hero.position.x + 3, 2.4, hero.position.z - 5), new V3(hero.position.x, 1.3, hero.position.z)];
+  return [new V3(2.6, 1.9, 5.2), new V3(0, 1.3, 0)];
+}
+
+function animate(now) {
+  requestAnimationFrame(animate);
+  const dt = Math.min(.05, (now - last) / 1000); last = now; time += dt;
+  for (let i = tweens.length - 1; i >= 0; i--) {
+    const tw = tweens[i]; tw.t += dt * 1000; const k = Math.min(1, tw.t / tw.ms); tw.fn(k);
+    if (k >= 1) { tweens.splice(i, 1); tw.res(); }
+  }
+  const ws = frameWaiters.splice(0); ws.forEach(f => f(dt));
+
+  const hu = hero.userData, hg = hu.inner;
+  if (hero.walking) {
+    const s = Math.sin(time * 10);
+    hu.legs[0].rotation.x = s * .7; hu.legs[1].rotation.x = -s * .7;
+    hu.arm2.rotation.x = -s * .5; hg.position.y = Math.abs(s) * .08;
+    if (!hero.slashing) hu.arm.rotation.x = s * .4;
+  } else {
+    hu.legs[0].rotation.x = hu.legs[1].rotation.x = 0; hu.arm2.rotation.x = 0;
+    hg.position.y = Math.sin(time * 2) * .02;
+    if (!hero.slashing) hu.arm.rotation.x = 0;
+  }
+  hu.cape.rotation.x = .12 + Math.sin(time * 4) * .06 + (hero.walking ? .2 : 0);
+
+  actors.forEach((a, i) => {
+    const u = a.userData;
+    if (!a.dead) { u.inner.position.y = Math.abs(Math.sin(time * 2 + i)) * .14; u.inner.rotation.z = Math.sin(time * 3 + i) * .03; }
+    if (u.puffs) u.puffs.forEach((p, j) => p.position.set(Math.cos(time + j * 1.05) * 1.3, 1.2 + Math.sin(time * 1.3 + j) * .8, Math.sin(time + j * 1.05) * .9));
+  });
+  for (let i = bursts.length - 1; i >= 0; i--) {
+    const b = bursts[i]; b.t += dt; const k = b.t / .8;
+    b.m.position.addScaledVector(b.v, dt); b.v.y -= 6 * dt; b.m.scale.setScalar(Math.max(.01, 1 - k));
+    if (k >= 1) { scene.remove(b.m); bursts.splice(i, 1); }
+  }
+  const p = ffGeo.attributes.position;
+  for (let i = 0; i < FF; i++) p.setY(i, 1.6 + Math.sin(time * .8 + ffPh[i]) * 1.2 + (ffPh[i] % 1));
+  p.needsUpdate = true;
+
+  if (camMode === 'title') {
+    if (T.ready) { updateTitle(dt); renderer.render(titleScene, tcam); }
+    return;
+  }
+  const t = clamp((hero.position.z - 90) / 60, 0, 1);
+  scene.background.lerpColors(FOREST, DUSK, t); scene.fog.color.copy(scene.background);
+
+  const [tp, tl] = camTarget(), k = 1 - Math.pow(.002, dt);
+  camPos.lerp(tp, k); camLook.lerp(tl, k);
+  camera.position.copy(camPos); camera.lookAt(camLook);
+  renderer.render(scene, camera);
+}
+
+/* ---------- effects ---------- */
+function burst(pos, cols, n) {
+  for (let i = 0; i < n; i++) {
+    const m = mesh(new THREE.SphereGeometry(.16, 6, 5), new THREE.MeshBasicMaterial({ color: cols[i % cols.length] }), pos.x, pos.y, pos.z);
+    scene.add(m); bursts.push({ m, t: 0, v: new V3((Math.random() - .5) * 5, 2 + Math.random() * 4, (Math.random() - .5) * 5) });
+  }
+}
+async function flash(g, hex) {
+  g.traverse(o => { if (o.material && o.material.emissive) o.material.emissive.setHex(hex); });
+  await wait(160);
+  g.traverse(o => { if (o.material && o.material.emissive) o.material.emissive.setHex(0); });
+}
+const turnHero = to => { const from = hero.rotation.y; return anim(320, k => { hero.rotation.y = lerp(from, to, ease(k)); }); };
+
+async function walkTo(z) {
+  camMode = 'follow'; hero.walking = true;
+  while (hero.position.z < z) { const dt = await nextFrame(); hero.position.z = Math.min(z, hero.position.z + 6.5 * dt); }
+  hero.walking = false;
+}
+async function heroAttack(mon) {
+  const z0 = hero.position.z, z1 = mon.position.z - 3.4;
+  hero.walking = true; await anim(320, k => { hero.position.z = lerp(z0, z1, ease(k)); }); hero.walking = false;
+  hero.slashing = true; sfx('hit');
+  await anim(260, k => { hero.userData.arm.rotation.x = lerp(-2.8, -.6, ease(k)); });
+  burst(new V3(mon.position.x, 1.8, mon.position.z - .5), [0xffcf4a, 0xffffff], 12);
+  flash(mon, 0xff5533);
+  await anim(260, k => { mon.userData.inner.position.x = Math.sin(k * 30) * .15 * (1 - k); });
+  hero.slashing = false;
+  await anim(300, k => { hero.position.z = lerp(z1, z0, ease(k)); });
+}
+async function monsterAttack(mon) {
+  const z0 = mon.position.z, z1 = hero.position.z + 3.2;
+  await anim(320, k => { mon.position.z = lerp(z0, z1, ease(k)); });
+  sfx('hit'); flash(hero, 0xff2233);
+  burst(new V3(0, 1.4, hero.position.z + .6), [0xff5d73, 0xffffff], 8);
+  const hz = hero.position.z;
+  await anim(300, k => { hero.position.z = hz - Math.sin(k * Math.PI) * 1.1; mon.position.z = lerp(z1, z0, ease(k)); });
+}
+async function defeat(mon) {
+  mon.dead = true; sfx('win');
+  burst(new V3(mon.position.x, 1.6, mon.position.z), [0xffffff, 0xffcf4a, 0xff5d73, 0x5fd18a], 22);
+  await anim(600, k => { mon.scale.setScalar(Math.max(.001, 1 - ease(k))); mon.rotation.y += .25; });
+  mon.visible = false;
+}
+
+/* ---------- UI ---------- */
+const dockBox = $('#dock .dockin');
+function showPanel(el) { [...dockBox.children].forEach(p => p.hidden = p !== el); $('#dock').hidden = !el; }
+
+function renderHearts() { $('#hearts').innerHTML = [0, 1, 2].map(i => '<span class="heart' + (i < hearts ? '' : ' off') + '">♥</span>').join(''); }
+function renderItems() {
+  $('#items').innerHTML = [['rice','米'],['oil','油'],['soy','豆']].map(([k, c]) => '<span class="chip' + (items[k] ? ' on' : '') + '" title="' + k + '">' + c + '</span>').join('');
+}
+function setStage(n, t) { $('#stage').textContent = 'ステージ ' + n + ' / 5　' + t; }
+function setPips(hp, max, name) {
+  $('#mhp').hidden = max === 0; if (!max) return;
+  $('#mname').textContent = name;
+  $('#pips').innerHTML = Array.from({ length: max }, (_, i) => '<span class="pip' + (i < hp ? '' : ' off') + '"></span>').join('');
+}
+
+let typer;
+function say(name, text) {
+  return new Promise(res => {
+    const talk = $('#talk'), line = $('#line'), nxt = $('#next');
+    $('#who').textContent = name; line.textContent = ''; nxt.hidden = true; showPanel(talk);
+    let i = 0, done = false; clearInterval(typer);
+    const finish = () => { clearInterval(typer); line.textContent = text; done = true; nxt.hidden = false; };
+    typer = setInterval(() => { i++; line.textContent = text.slice(0, i); if (i >= text.length) finish(); }, 28);
+    const h = () => {
+      if (!done) { finish(); return; }
+      talk.removeEventListener('click', h); talk.removeEventListener('keydown', kd); sfx('tap'); res();
+    };
+    const kd = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); h(); } };
+    talk.addEventListener('click', h); talk.addEventListener('keydown', kd);
+  });
+}
+function actButton(label) {
+  return new Promise(res => {
+    const b = $('#actBtn'); b.textContent = label; showPanel($('#act'));
+    b.onclick = () => { b.onclick = null; sfx('tap'); res(); };
+  });
+}
+function ask(q) {
+  return new Promise(res => {
+    const box = $('#choices'); box.innerHTML = ''; $('#qtext').textContent = q.q; $('#fb').hidden = true; showPanel($('#quiz'));
+    let locked = false; const btns = [];
+    shuffle([0, 1, 2]).forEach(idx => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'choice'; b.textContent = q.c[idx];
+      b.onclick = () => {
+        if (locked) return; locked = true;
+        const ok = idx === q.a; b.classList.add(ok ? 'right' : 'wrong');
+        if (!ok) btns.find(x => x.textContent === q.c[q.a]).classList.add('right');
+        btns.forEach(x => x.disabled = true);
+        const r = $('#res'); r.textContent = ok ? 'せいかい!' : 'ざんねん…'; r.className = ok ? 'ok' : 'ng';
+        $('#exp').textContent = q.exp; $('#fb').hidden = false; sfx(ok ? 'ok' : 'ng');
+        $('#qnext').onclick = () => { $('#qnext').onclick = null; sfx('tap'); res(ok); };
+      };
+      box.appendChild(b); btns.push(b);
+    });
+  });
+}
+function showDrop(d) {
+  return new Promise(res => {
+    $('#dchip').textContent = d.chip; $('#dname').textContent = d.name; $('#ddesc').textContent = d.desc;
+    showPanel(null); $('#drop').hidden = false; sfx('get');
+    $('#dok').onclick = () => { $('#dok').onclick = null; $('#drop').hidden = true; res(); };
+  });
+}
+
+/* ---------- game flow ---------- */
+function spawnActors() {
+  actors.forEach(a => scene.remove(a)); actors = [];
+  [makeFlour, makeEgg, makeCow].forEach((f, i) => { const m = f(); m.position.set(0, 0, MZ[i]); m.rotation.y = Math.PI; scene.add(m); actors.push(m); });
+  maou = makeMaou(); maou.position.set(0, 0, 148); maou.rotation.y = Math.PI; scene.add(maou); actors.push(maou);
+}
+
+async function battle(i) {
+  const m = MON[i], mon = actors[i], max = 2; let hp = max, queue = shuffle(m.qs);
+  setPips(hp, max, m.name);
+  await say(m.name, m.intro);
+  while (hp > 0) {
+    if (!queue.length) queue = shuffle(m.qs);
+    const q = queue.shift(), ok = await ask(q); showPanel(null);
+    if (ok) { await heroAttack(mon); hp--; setPips(hp, max, m.name); }
+    else {
+      queue.push(q); await monsterAttack(mon); hearts--; renderHearts();
+      if (hearts <= 0) { await say('勇者', 'うう…やられた! …でも、あきらめないぞ!'); hearts = 3; renderHearts(); showPanel(null); }
+    }
+    await wait(250);
+  }
+  await defeat(mon); setPips(0, 0);
+  await showDrop(m.drop); items[m.drop.k] = true; renderItems();
+  camMode = 'follow';
+}
+
+async function cooking() {
+  camMode = 'cook'; setStage(4, 'クッキーづくり'); showPanel(null);
+  const el = $('#cook'), shelf = $('#shelf'), layers = $('#layers'), msg = $('#cmsg'), bowl = $('#bowl');
+  const mixBtn = $('#mixBtn'), bakeBtn = $('#bakeBtn'), done = $('#cookDone'), bar = $('#mixbar'), oven = $('#oven'), cookie = $('#cookie');
+  shelf.innerHTML = ''; layers.innerHTML = ''; bowl.className = 'bowl'; bowl.hidden = false;
+  [mixBtn, bakeBtn, done, bar, oven, cookie].forEach(x => x.hidden = true); $('#mixfill').style.width = '0';
+  msg.textContent = 'ざいりょうだなから、アレルギーの人が たべられる ざいりょうを 4つ えらんで ボウルに いれよう。';
+  el.hidden = false;
+  let count = 0;
+  const finished = new Promise(resolve => {
+    INGS.forEach(d => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'ing';
+      b.innerHTML = '<b>' + d.ch + '</b>' + d.n;
+      b.onclick = () => {
+        if (b.classList.contains('used')) return;
+        if (d.bad) { sfx('ng'); msg.textContent = d.why; b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; }
+        b.classList.add('used'); sfx('tap');
+        const l = document.createElement('div'); l.className = 'layer'; l.style.background = d.col; layers.appendChild(l);
+        count++; msg.textContent = d.n + ' を いれたよ。(' + count + ' / 4)';
+        if (count === 4) { msg.textContent = 'ぜんぶ いれたね! ボウルを まぜよう。'; mixBtn.hidden = false; bar.hidden = false; }
+      };
+      shelf.appendChild(b);
+    });
+    let prog = 0;
+    mixBtn.onclick = () => {
+      prog = Math.min(100, prog + 20); $('#mixfill').style.width = prog + '%'; sfx('tap');
+      bowl.classList.remove('mixing'); void bowl.offsetWidth; bowl.classList.add('mixing');
+      if (prog >= 100) { bowl.classList.add('merged'); mixBtn.hidden = true; bar.hidden = true; bakeBtn.hidden = false; msg.textContent = 'いい生地が できたよ! オーブンで やこう。'; }
+    };
+    bakeBtn.onclick = async () => {
+      bakeBtn.hidden = true; bowl.hidden = true; oven.hidden = false; msg.textContent = '';
+      await wait(2200); oven.hidden = true; cookie.hidden = false; sfx('get');
+      msg.textContent = 'できた! 小麦・卵・牛乳を つかわない クッキーだ!'; done.hidden = false;
+    };
+    done.onclick = () => { done.onclick = null; el.hidden = true; resolve(); };
+  });
+  await finished;
+}
+
+async function bossScene() {
+  setStage(5, '魔王のしろ'); await walkTo(140);
+  await say('魔王', 'ぐははは! よくぞ ここまで きた、勇者よ! 「だれでも 安心して たべられる クッキー」は できたか?');
+  await say('勇者', '小麦も 卵も 牛乳も つかっていない、みんなが たべられる クッキーだ!');
+  await actButton('クッキーを なげる!'); showPanel(null);
+  const ck = mesh(new THREE.CylinderGeometry(.4, .4, .14, 14), M(0xd9a45b), 0, 1.4, hero.position.z + .6);
+  [[.15, .1], [-.18, .05], [.02, -.2]].forEach(([x, z]) => ck.add(mesh(new THREE.SphereGeometry(.06, 6, 5), M(0x5a3418), x, .08, z)));
+  scene.add(ck); const a = ck.position.clone(), b = new V3(0, 3.0, maou.position.z - .4);
+  await anim(750, k => { ck.position.lerpVectors(a, b, k); ck.position.y += Math.sin(k * Math.PI) * 2; ck.rotation.x += .3; });
+  scene.remove(ck); sfx('get');
+  burst(new V3(0, 3, maou.position.z), [0xffcf4a, 0xffffff, 0xff5d73], 14);
+  await anim(500, k => { maou.userData.inner.scale.setScalar(1 + Math.sin(k * Math.PI) * .12); });
+  maou.userData.head.color.setHex(0xc9a0e0);
+  burst(new V3(0, 4, maou.position.z), [0xffcf4a, 0xff5d73, 0x5fd18a, 0x6aa8ff], 30); sfx('win');
+  await say('ものがたり', '魔王と仲直りした。');
+  showPanel(null); $('#hud').hidden = true;
+  spawnActors(); hero.position.set(0, 0, 0); hero.rotation.y = 0; camMode = 'title';
+  $('#title').hidden = false;
+}
+
+async function run() {
+  spawnActors(); hearts = 3; items = {}; renderHearts(); renderItems(); setPips(0, 0);
+  hero.position.set(0, 0, 0); hero.rotation.y = 0; hero.slashing = false;
+  camPos.set(2.8, 3.1, -6.5); camLook.set(0, 1.5, 5);
+  $('#title').hidden = true; $('#hud').hidden = false;
+  camMode = 'follow'; setStage(1, MON[0].stage);
+  await say('ものがたり', '魔王は いった。「だれでも 安心して たべられる クッキーを もってこい!」 しかし 森には、アレルギーの原因になる 材料の モンスターが いるという…。');
+  await say('勇者', 'よし! モンスターを たおして、かわりの 材料を ゲットするぞ!');
+  showPanel(null);
+  for (let i = 0; i < 3; i++) { setStage(i + 1, MON[i].stage); await walkTo(MZ[i] - 8); await battle(i); }
+  await say('勇者', '米粉、油、豆乳。3つの 材料が そろった! さっそく クッキーを つくろう。');
+  showPanel(null); await cooking();
+  await bossScene();
+}
+
+/* ---------- title diorama: the title illustration rebuilt in 3D ---------- */
+const titleScene = new THREE.Scene(); titleScene.background = new THREE.Color(0xc4ecf5);
+const tcam = new THREE.PerspectiveCamera(35, 1, .1, 200);
+const T = { ready: false, t: 0, ptr: { x: 0, y: 0 }, clouds: [], whisk: null, titleBase: new V3(), chefBase: new V3() };
+const TM = c => new THREE.MeshLambertMaterial({ color: c });
+titleScene.add(new THREE.HemisphereLight(0xffffff, 0xcfe8c0, .95));
+const tsun = new THREE.DirectionalLight(0xffffff, .6); tsun.position.set(-6, 9, 12); titleScene.add(tsun);
+addEventListener('pointermove', e => { T.ptr.x = e.clientX / innerWidth * 2 - 1; T.ptr.y = e.clientY / innerHeight * 2 - 1; });
+
+function textTex(text, w, h, px, fill, thick, outline, outW) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  x.font = "900 " + px + "px 'Zen Maru Gothic','Hiragino Maru Gothic ProN','Yu Gothic','Noto Sans JP',sans-serif";
+  x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
+  if (outline) { x.lineWidth = outW; x.strokeStyle = outline; x.strokeText(text, w / 2, h / 2 + 6); }
+  x.lineWidth = thick; x.strokeStyle = fill; x.strokeText(text, w / 2, h / 2 + 6);
+  x.fillStyle = fill; x.fillText(text, w / 2, h / 2 + 6);
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+}
+function extrudedText(text, w, h, px, planeW, frontCol, sideCol, thick, outline, outW, layers, step) {
+  const g = new THREE.Group(), ph = planeW * h / w;
+  const front = textTex(text, w, h, px, frontCol, thick, outline, outW), side = textTex(text, w, h, px, sideCol, thick, null, 0);
+  for (let i = layers; i >= 1; i--) {
+    const p = mesh(new THREE.PlaneGeometry(planeW, ph), new THREE.MeshBasicMaterial({ map: side, transparent: true, alphaTest: .35 }), i * .014, -i * .014, -i * step); g.add(p);
+  }
+  g.add(mesh(new THREE.PlaneGeometry(planeW, ph), new THREE.MeshBasicMaterial({ map: front, transparent: true, alphaTest: .35 }), 0, 0, 0));
+  g.userData.h = ph; return g;
+}
+function limb(g, a, b, r, mat) {
+  const A = new V3(a[0], a[1], a[2]), B = new V3(b[0], b[1], b[2]), d = B.clone().sub(A), len = d.length();
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 12), mat);
+  m.position.copy(A).add(B).multiplyScalar(.5); m.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize()); g.add(m); return m;
+}
+function makeTree(h, col, wide) {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.CylinderGeometry(.12, .16, h * .35, 8), TM(0x7a5230), 0, h * .17, 0));
+  const f = mesh(new THREE.SphereGeometry(1, 16, 12), TM(col), 0, h * .62, 0); f.scale.set(h * .26 * wide, h * .42, h * .26 * wide); g.add(f);
+  return g;
+}
+function makeHouse(w, h, d, wall, roof) {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.BoxGeometry(w, h, d), TM(wall), 0, h / 2, 0));
+  const rg = new THREE.ConeGeometry(1, h * .75, 4); rg.rotateY(Math.PI / 4);
+  const r = mesh(rg, TM(roof), 0, h + h * .375, 0); r.scale.set(w * 1.12 / 1.414, 1, d * 1.12 / 1.414); g.add(r);
+  g.add(mesh(new THREE.BoxGeometry(.28, .5, .28), TM(0xb98a5a), w * .25, h + h * .55, -d * .1));
+  [-1, 1].forEach(s => g.add(mesh(new THREE.BoxGeometry(.3, .36, .05), TM(0x7a5230), s * w * .26, h * .62, d / 2 + .01)));
+  g.add(mesh(new THREE.BoxGeometry(.36, .6, .05), TM(0x8a5a2c), 0, .3, d / 2 + .01));
+  return g;
+}
+function makeTower() {
+  const g = new THREE.Group(), rg = new THREE.ConeGeometry(.75, 1.4, 4); rg.rotateY(Math.PI / 4);
+  g.add(mesh(new THREE.BoxGeometry(.9, 2.4, .9), TM(0xf3e3bd), 0, 1.2, 0));
+  g.add(mesh(rg, TM(0xd9573a), 0, 3.1, 0));
+  g.add(mesh(new THREE.BoxGeometry(.22, .42, .05), TM(0x7a5230), 0, 1.8, .46));
+  return g;
+}
+function makeCastle() {
+  const g = new THREE.Group(), st = TM(0xcfcac2), rf = TM(0xd9573a);
+  const hl = mesh(new THREE.SphereGeometry(1, 28, 16), TM(0x86cf68), 0, -2.0, .3); hl.scale.set(6, 2.0, 4); g.add(hl);
+  g.add(mesh(new THREE.BoxGeometry(3.4, 1.3, 1.3), st, 0, .65, 0));
+  for (let i = 0; i < 8; i++) g.add(mesh(new THREE.BoxGeometry(.24, .22, .24), st, -1.5 + i * .43, 1.4, .55));
+  [-1, 1].forEach(s => {
+    g.add(mesh(new THREE.CylinderGeometry(.46, .5, 2.3, 12), st, s * 1.65, 1.15, 0));
+    g.add(mesh(new THREE.ConeGeometry(.66, 1.0, 12), rf, s * 1.65, 2.8, 0));
+    g.add(mesh(new THREE.BoxGeometry(.14, .28, .04), TM(0x6a5a4a), s * 1.65, 1.5, .5));
+  });
+  g.add(mesh(new THREE.CylinderGeometry(.5, .55, 3.2, 12), st, 0, 1.6, -.15));
+  g.add(mesh(new THREE.ConeGeometry(.72, 1.3, 12), rf, 0, 3.85, -.15));
+  g.add(mesh(new THREE.CylinderGeometry(.02, .02, .9, 6), TM(0x555555), 0, 5.0, -.15));
+  g.add(mesh(new THREE.BoxGeometry(.45, .25, .02), TM(0x7a8fb0), .25, 5.2, -.15));
+  g.add(mesh(new THREE.BoxGeometry(.55, .8, .06), TM(0x6a5a4a), 0, .4, .66));
+  return g;
+}
+function makeChef() {
+  const c = new THREE.Group(), g = new THREE.Group(); c.add(g);
+  const white = TM(0xfdfdfb), skin = TM(0xf8cca2), brown = TM(0x8a5128), red = TM(0xdc3b33), dark = TM(0x1b1210);
+  const add = (geo, mat, x, y, z, sx, sy, sz) => { const m = mesh(geo, mat, x, y, z); if (sx !== undefined) m.scale.set(sx, sy, sz); g.add(m); return m; };
+  /* body */
+  add(new THREE.CylinderGeometry(.95, 1.12, 2.2, 18), white, 0, 1.0, 0);
+  add(new THREE.SphereGeometry(1, 18, 12), white, 0, 2.0, 0, 1.15, .5, .85);
+  add(new THREE.CylinderGeometry(.32, .36, .4, 12), skin, 0, 2.35, 0);
+  [-1, 1].forEach(s => { const b = add(new THREE.BoxGeometry(.2, 2.0, .08), TM(0x8a5a2c), s * .62, 1.1, .88); b.rotation.y = s * .6; });
+  add(new THREE.CylinderGeometry(1.14, 1.14, .24, 18), TM(0x6b3f1d), 0, .12, 0);
+  add(new THREE.BoxGeometry(.32, .26, .06), TM(0xe0b030), 0, .12, 1.14);
+  [.55, 1.0].forEach(y => add(new THREE.SphereGeometry(.06, 8, 6), TM(0xb8b8b8), 0, y, 1.07));
+  /* neckerchief */
+  const nt = add(new THREE.TorusGeometry(.6, .17, 10, 24), red, 0, 2.2, .02); nt.rotation.x = Math.PI / 2;
+  const tri = add(new THREE.ConeGeometry(.7, 1.1, 3), red, 0, 1.65, .93); tri.rotation.x = Math.PI; tri.scale.set(1, 1, .3);
+  add(new THREE.SphereGeometry(.22, 10, 8), red, 0, 2.05, .98);
+  /* head */
+  add(new THREE.SphereGeometry(1, 24, 18), skin, 0, 3.0, 0, 1, .95, .97);
+  add(new THREE.SphereGeometry(1.06, 24, 12, 0, Math.PI * 2, 0, Math.PI * .52), brown, 0, 3.08, -.02);
+  [-.7, -.35, 0, .35, .7].forEach((x, i) => add(new THREE.SphereGeometry(.32, 10, 8), brown, x, 3.48 - Math.abs(x) * .12 + (i % 2) * .04, .82, 1, .8, .6));
+  [-1, 1].forEach(s => {
+    add(new THREE.SphereGeometry(.11, 10, 8), dark, s * .38, 3.0, .93, 1, 1.35, .5);
+    add(new THREE.SphereGeometry(.035, 6, 5), TM(0xffffff), s * .34, 3.06, .99);
+    const br = add(new THREE.BoxGeometry(.3, .06, .04), brown, s * .38, 3.27, .93); br.rotation.z = s * .15;
+    const ch = add(new THREE.CircleGeometry(.2, 16), TM(0xf19c90), s * .62, 2.72, .82); ch.rotation.y = s * .7;
+    add(new THREE.SphereGeometry(.2, 10, 8), skin, s * 1.0, 2.95, -.05, .6, 1, .8);
+  });
+  add(new THREE.SphereGeometry(.06, 8, 6), TM(0xe8a77f), 0, 2.85, 1.0);
+  add(new THREE.CircleGeometry(.3, 20, Math.PI, Math.PI), TM(0x8a2424), 0, 2.6, .98);
+  add(new THREE.BoxGeometry(.5, .08, .02), TM(0xffffff), 0, 2.57, .99);
+  add(new THREE.CircleGeometry(.14, 12, Math.PI, Math.PI), TM(0xf08080), 0, 2.43, .99);
+  /* chef hat */
+  const hat = new THREE.Group(); hat.position.set(0, 3.9, 0); hat.rotation.z = -.07; g.add(hat);
+  hat.add(mesh(new THREE.CylinderGeometry(.95, .95, .55, 20), TM(0xf4f4f0), 0, .02, 0));
+  const hatTop = mesh(new THREE.SphereGeometry(.95, 20, 14), white, 0, .85, 0); hatTop.scale.set(1, .85, 1); hat.add(hatTop);
+  for (let k = 0; k < 5; k++) { const a = k / 5 * 6.283; hat.add(mesh(new THREE.SphereGeometry(.6, 14, 10), white, Math.cos(a) * .62, .65, Math.sin(a) * .62)); }
+  hat.add(mesh(new THREE.SphereGeometry(.72, 16, 12), white, .1, 1.3, 0));
+  /* left arm + whisk (screen left) */
+  limb(g, [-1.0, 2.0, .1], [-1.8, 1.05, .35], .32, white); add(new THREE.SphereGeometry(.32, 12, 10), white, -1.8, 1.05, .35);
+  limb(g, [-1.8, 1.05, .35], [-1.65, 1.9, .55], .28, white);
+  add(new THREE.SphereGeometry(.27, 12, 10), skin, -1.65, 1.95, .58);
+  const wh = new THREE.Group(); wh.position.set(-1.65, 1.95, .58); g.add(wh); T.whisk = wh;
+  wh.add(mesh(new THREE.CylinderGeometry(.08, .09, 1.1, 8), TM(0x8a5a2c), 0, .45, 0));
+  for (let k = 0; k < 6; k++) { const t = mesh(new THREE.TorusGeometry(.32, .016, 6, 28), TM(0xa8aeb6), 0, 1.75, 0); t.scale.y = 1.9; t.rotation.y = k * Math.PI / 6; wh.add(t); }
+  wh.add(mesh(new THREE.CylinderGeometry(.1, .1, .14, 8), TM(0xa8aeb6), 0, 1.02, 0));
+  /* right arm + egg basket */
+  limb(g, [1.0, 2.0, .1], [1.75, 1.05, .4], .32, white); add(new THREE.SphereGeometry(.32, 12, 10), white, 1.75, 1.05, .4);
+  limb(g, [1.75, 1.05, .4], [1.05, .5, .95], .28, white);
+  add(new THREE.CylinderGeometry(.8, .6, .7, 20), TM(0xb98441), 1.45, .35, .85);
+  const rim = add(new THREE.TorusGeometry(.8, .05, 6, 24), TM(0x9a6a2c), 1.45, .7, .85); rim.rotation.x = Math.PI / 2;
+  [[1.2,.85,.7,0xfff9ee],[1.68,.86,.8,0xe3c08f],[1.45,.98,.98,0xfff9ee],[1.38,.92,.55,0xfff9ee],[1.78,.82,1.02,0xe3c08f],[1.05,.82,1.0,0xfff9ee]]
+    .forEach(([x, y, z, col]) => add(new THREE.SphereGeometry(.27, 12, 10), TM(col), x, y, z, .85, 1.1, .85));
+  add(new THREE.SphereGeometry(.26, 12, 10), skin, .85, .55, 1.12);
+  /* wooden spoon behind the shoulder */
+  limb(g, [1.55, 1.6, -.7], [2.3, 3.7, -.7], .08, TM(0x9a6430));
+  const sp = add(new THREE.SphereGeometry(1, 14, 10), TM(0xc78a3e), 2.45, 4.1, -.7, .5, .8, .14); sp.rotation.z = -.3;
+  return c;
+}
+function buildTitle() {
+  const sc = document.createElement('canvas'); sc.width = 2; sc.height = 256; const sx = sc.getContext('2d');
+  const gr = sx.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#86d6ec'); gr.addColorStop(.6, '#c4ecf5'); gr.addColorStop(1, '#eaf8f6');
+  sx.fillStyle = gr; sx.fillRect(0, 0, 2, 256);
+  const sky = mesh(new THREE.PlaneGeometry(260, 56), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sc) }), 0, 1, -60); titleScene.add(sky);
+  [[-8,-.5,-14,1.6],[4,.8,-16,1.8],[-1,-2.2,-12,1.1],[12,3.2,-18,2],[-15,3,-20,2],[20,-1,-15,1.5]].forEach(([x, y, z, s]) => {
+    const cg = new THREE.Group();
+    [[0,0,1.2],[1.3,-.2,.9],[-1.3,-.25,.85],[.6,.5,.8],[-.5,.45,.7]].forEach(([a, b, r]) => { const m = mesh(new THREE.SphereGeometry(r, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffffff }), a, b, 0); m.scale.y = .8; cg.add(m); });
+    cg.position.set(x, y, z); cg.scale.setScalar(s); titleScene.add(cg); T.clouds.push(cg);
+  });
+  const hill = (x, y, z, sx2, sy, sz, c) => { const m = mesh(new THREE.SphereGeometry(1, 32, 18), TM(c), x, y, z); m.scale.set(sx2, sy, sz); titleScene.add(m); };
+  hill(-4, -6.5, -12, 22, 4.5, 6, 0x9bda7b); hill(10, -6.8, -8, 16, 3.8, 5, 0x7cc862); hill(0, -9, 2, 48, 5.2, 10, 0x62b552);
+
+  T.castle = makeCastle(); titleScene.add(T.castle);
+  T.houses = new THREE.Group(); titleScene.add(T.houses);
+  const hA = makeHouse(2.3, 1.5, 1.8, 0xf2dfb2, 0xd9663a); hA.position.set(-2.6, 0, .6); T.houses.add(hA);
+  const tw = makeTower(); tw.position.set(-.3, 0, -1.2); T.houses.add(tw);
+  const hB = makeHouse(2.0, 1.3, 1.6, 0xf6e6c0, 0xdba04a); hB.position.set(1.5, 0, -.4); T.houses.add(hB);
+  [[-4.6,-.2,3.4,0x3f9a4a,.8],[-5.4,-1.2,2.8,0x4aa84a,.8],[3.5,-1.4,2.4,0x4aa84a,1.4]].forEach(([x, z, h, col, w]) => { const t = makeTree(h, col, w); t.position.set(x, 0, z); T.houses.add(t); });
+  T.treesR = new THREE.Group(); titleScene.add(T.treesR);
+  [[0,0,3.2,0x3f9a4a,1],[-1.0,-.8,2.5,0x4aa84a,1.3]].forEach(([x, z, h, col, w]) => { const t = makeTree(h, col, w); t.position.set(x, 0, z); T.treesR.add(t); });
+
+  T.chef = makeChef(); T.chef.rotation.y = -.2; titleScene.add(T.chef);
+
+  T.titleG = new THREE.Group(); titleScene.add(T.titleG);
+  const tt = extrudedText('勇者のクッキー', 1800, 340, 235, 10, '#141414', '#5d636b', 16, null, 0, 9, .065); T.titleG.add(tt);
+  const st = extrudedText('〜クッキーを探して〜', 1500, 220, 125, 8.3, '#ff3b3b', '#8a1c1c', 6, '#ffffff', 14, 6, .05);
+  st.position.set(-.85, -(tt.userData.h / 2 + st.userData.h / 2 + .15), 0); T.titleG.add(st);
+}
+function layoutTitle() {
+  const a = innerWidth / innerHeight, W = 10 * a, land = a >= 1;
+  tcam.aspect = a; tcam.updateProjectionMatrix();
+  const tw = land ? Math.min(W * .62, 12.5) : W * .92;
+  T.titleG.scale.setScalar(tw / 10);
+  T.titleBase.set(land ? -W / 2 + W * .05 + tw / 2 : 0, land ? 3.0 : 3.7, 2);
+  T.chef.scale.setScalar(land ? 1.55 : 1.0);
+  T.chefBase.set(land ? W / 2 - 3.2 : W * .14, land ? -5.5 : -5.0, 2);
+  T.castle.scale.setScalar(land ? 1 : .62);
+  T.castle.position.set(land ? -W * .25 : -W * .2, land ? -2.3 : -.8, -6);
+  T.houses.scale.setScalar(land ? 1 : .5);
+  T.houses.position.set(land ? -W * .26 : -W * .12, -3.7, -.5);
+  T.treesR.position.set(W / 2 - .8, -3.6, -3);
+}
+function updateTitle(dt) {
+  T.t += dt;
+  const k = Math.min(1, dt * 3), tx = Math.sin(T.t * .35) * .9 + T.ptr.x * 1.2, ty = .3 - T.ptr.y * .6;
+  tcam.position.x += (tx - tcam.position.x) * k; tcam.position.y += (ty - tcam.position.y) * k; tcam.position.z = 15.86;
+  tcam.lookAt(0, 0, 0);
+  T.titleG.position.set(T.titleBase.x, T.titleBase.y + Math.sin(T.t * 1.6) * .12, T.titleBase.z);
+  T.chef.position.set(T.chefBase.x, T.chefBase.y + Math.sin(T.t * 1.8) * .05, T.chefBase.z);
+  T.chef.rotation.y = -.2 + Math.sin(T.t * .6) * .06;
+  T.whisk.rotation.z = Math.sin(T.t * 5) * .08;
+  T.clouds.forEach(c => { c.position.x += dt * .25; if (c.position.x > 40) c.position.x = -40; });
+}
+addEventListener('resize', () => { if (T.ready) layoutTitle(); });
+
+/* ---------- boot ---------- */
+$('#mute').onclick = () => { muted = !muted; $('#mute').classList.toggle('off', muted); };
+$('#startBtn').onclick = () => { sfx('tap'); run(); };
+renderHearts(); renderItems();
+camera.position.copy(camPos); camera.lookAt(camLook);
+requestAnimationFrame(animate);
+
+const fontReady = (document.fonts && document.fonts.load) ? Promise.all([document.fonts.load("900 40px 'Zen Maru Gothic'", '小麦粉卵牛乳勇者クッキー探'), document.fonts.load("500 20px 'Zen Maru Gothic'")]) : Promise.resolve();
+Promise.race([fontReady.catch(() => {}), wait(2500)]).then(() => {
+  buildTitle(); layoutTitle(); T.ready = true;
+  spawnActors(); hero.position.set(0, 0, 0);
+  $('#title').hidden = false; $('#startBtn').hidden = false; $('#loadmsg').hidden = true;
+});
+})();
+</script>
